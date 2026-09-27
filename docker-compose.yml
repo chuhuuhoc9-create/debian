@@ -1,0 +1,12 @@
+services:
+  xrdp:
+    build:
+      context: .
+      args:
+        USERNAME: xrdpuser
+        USER_PASSWORD: xrdp
+    container_name: debian-xrdp-wine
+    ports:
+      - "3389:3389"
+    shm_size: "2gb"
+    restart: unless-stopped
