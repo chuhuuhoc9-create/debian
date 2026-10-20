@@ -1,439 +1,265 @@
-import threading
-import time
+# -*- coding: utf-8 -*-
 import os
-import json
-import random
-import base64
-from datetime import datetime
-import locale
-from curl_cffi import requests as curl_requests
+import sys
+import time
+import requests
+import asyncio
+import shutil
+from colorama import Fore, Style, init
 
-VERSION = "2.6"
-API_BASE = "https://discord.com/api/v10"
-
-lock = threading.Lock()
-sent_messages = 0
-start_time = time.time()
-
-CHROME_VERSIONS = [
-    ("131.0.0.0", "131", "chrome131"),
-    ("124.0.0.0", "124", "chrome124"),
-    ("123.0.0.0", "123", "chrome123"),
-    ("120.0.0.0", "120", "chrome120"),
-    ("110.0.0.0", "110", "chrome110"),
-]
-
-EDGE_TARGETS = ["edge101", "edge99"]
-
-
-def _rand_hex(n=32):
-    return os.urandom(n // 2).hex()
-
-
-def _rand_uuid_like():
-    return f"{_rand_hex(8)}-{_rand_hex(4)}-{_rand_hex(4)}-{_rand_hex(4)}-{_rand_hex(12)}"
-
-
-class BrowserProfile:
-    def __init__(self):
-        self.version_full, self.version_major, self.impersonate = random.choice(CHROME_VERSIONS)
-        self.is_edge = random.random() < 0.25
-
-        if self.is_edge:
-            self.impersonate = random.choice(EDGE_TARGETS)
-            self.brand = "Microsoft Edge"
-            self.ua = (
-                f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                f"(KHTML, like Gecko) Chrome/{self.version_full} Safari/537.36 "
-                f"Edg/{self.version_full}"
-            )
-        else:
-            self.brand = "Google Chrome"
-            self.ua = (
-                f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                f"(KHTML, like Gecko) Chrome/{self.version_full} Safari/537.36"
-            )
-
-        self.locale = random.choice(["en-US", "en-GB"])
-        self.timezone = random.choice([
-            "Asia/Ho_Chi_Minh",
-            "Asia/Bangkok",
-            "Asia/Singapore",
-            "America/New_York",
-            "Europe/London",
-        ])
-        self.release_channel = random.choice(["stable", "stable", "stable", "ptb"])
-        self.build_number = random.randint(320000, 340000)
-        self.client_launch_id = _rand_uuid_like()
-        self.heartbeat_session_id = _rand_uuid_like()
-
-    def sec_ch_ua(self):
-        if self.is_edge:
-            return (
-                f'"Microsoft Edge";v="{self.version_major}", '
-                f'"Chromium";v="{self.version_major}", '
-                f'"Not_A Brand";v="24"'
-            )
-        return (
-            f'"Google Chrome";v="{self.version_major}", '
-            f'"Chromium";v="{self.version_major}", '
-            f'"Not_A Brand";v="24"'
-        )
-
-    def super_properties(self):
-        dev = {
-            "os": "Windows",
-            "browser": "Edge" if self.is_edge else "Chrome",
-            "device": "",
-            "system_locale": self.locale,
-            "browser_user_agent": self.ua,
-            "browser_version": self.version_full,
-            "os_version": "10",
-            "release_channel": self.release_channel,
-            "client_build_number": self.build_number,
-            "client_launch_id": self.client_launch_id,
-            "client_heartbeat_session_id": self.heartbeat_session_id,
-        }
-        return base64.b64encode(
-            json.dumps(dev, separators=(",", ":")).encode()
-        ).decode()
-
-    def headers(self, token=None):
-        h = {
-            "Accept": "*/*",
-            "Accept-Language": f"{self.locale},en;q=0.9",
-            "Content-Type": "application/json",
-            "User-Agent": self.ua,
-            "X-Super-Properties": self.super_properties(),
-            "X-Discord-Locale": self.locale,
-            "X-Discord-Timezone": self.timezone,
-            "X-Debug-Options": "bugReporterEnabled",
-            "Origin": "https://discord.com",
-            "Referer": "https://discord.com/channels/@me",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin",
-            "Sec-CH-UA": self.sec_ch_ua(),
-            "Sec-CH-UA-Mobile": "?0",
-            "Sec-CH-UA-Platform": '"Windows"',
-            "Priority": "u=1, i",
-            "DNT": "1",
-        }
-        if token:
-            h["Authorization"] = token
-        return h
-
-
-try:
-    locale.setlocale(locale.LC_ALL, 'vi_VN.UTF-8')
-except:
-    locale.setlocale(locale.LC_ALL, '')
-
-
-def get_time():
-    return datetime.now().strftime("%A | %H:%M:%S | %d/%m/%Y")
-
-
-def get_uptime():
-    elapsed = int(time.time() - start_time)
-    h, rem = divmod(elapsed, 3600)
-    m, s = divmod(rem, 60)
-    return f"{h:02d}:{m:02d}:{s:02d}"
-
-
-def get_banner():
-    return r"""
-  
-"""
-
-
-def log_info(msg):
-    print(f"[SYSTEM] {msg}")
-
-
-def log_success(msg):
-    print(f"[SYSTEM] {msg}")
-
-
-def log_warning(msg):
-    print(f"[SYSTEM] {msg}")
-
-
-def log_input(msg):
-    return input(f"[INPUT] {msg}")
-
-
-def log_message(channel_id, channel_name, server_name, content, token):
-    global sent_messages
-    print(f"[{get_uptime()}] [MSANG] 🍀 {channel_name}")
-
+init(autoreset=True)
 
 def clear_screen():
-    os.system("cls" if os.name == "nt" else "clear")
-    print(get_banner())
-    print("=" * 60)
+    os.system('cls' if os.name == 'nt' else 'clear')
 
+def print_large_text():
+    large_text = """
+ 
+Bui Van Minh
+                                                              
+    """
+    print(large_text)
 
-def read_tokens(file_name):
-    if not os.path.exists(file_name):
-        log_warning(f"File '{file_name}' khong ton tai!")
-        return []
-    try:
-        with open(file_name, "r", encoding="utf-8") as f:
-            tokens = [line.strip() for line in f if line.strip()]
-            return tokens
-    except Exception as e:
-        log_warning(f"Loi khi doc file '{file_name}': {str(e)}")
-        return []
+def print_ryder():
+    ryder_text = f"""{Fore.CYAN}
+--------------------------------------------
+|                                          |
+| {Fore.YELLOW}Tool Copyright:  Bui Van Minh {Fore.CYAN}|
+| {Fore.YELLOW}Discord Đa token {Fore.CYAN}             |
+|                                          |
+--------------------------------------------
+    """
+    print(ryder_text)
 
+def print_sd():
+    cachsudung = f"""{Style.BRIGHT + Fore.GREEN}
+Cách Sử Dụng Tool:
+- B1: Chọn chế độ spam (1: Treo Ngôn | 2: Treo Nhây)
+- B2: Nhập ID kênh Discord (cách nhau dấu phẩy ,)
+- B3: Nhập tên file chứa token cho từng kênh
+- B4: Chọn file chứa nội dung spam (file .txt)
+- B5: Nhập delay cho từng token
+- B6: (Mode 2) Nhập ID người réo (tag) mỗi ID 1 dòng, Enter để kết thúc
+- B7: (Mode 2) Nhập tên réo (thêm tên text vào nội dung, cách nhau dấu phẩy)
+    """
+    print(cachsudung)
 
-def check_live_token(token):
-    prof = BrowserProfile()
-    try:
-        session = curl_requests.Session(impersonate=prof.impersonate, verify=False)
-        headers = prof.headers(token)
-        r = session.get(f"{API_BASE}/users/@me", headers=headers, timeout=15)
-        if r.status_code == 200:
-            data = r.json()
-            username = data.get("username", "Unknown")
-            discriminator = data.get("discriminator", "0")
-            if discriminator and discriminator != "0":
-                return True, f"{username}#{discriminator}"
-            return True, username
-        return False, None
-    except Exception:
-        return False, None
-
-
-def save_die_token(token):
-    try:
-        with open("die.txt", "a", encoding="utf-8") as f:
-            f.write(token + "\n")
-    except Exception:
-        pass
-
-
-def check_live_all(tokens):
-    log_info(f"Dang kiem tra {len(tokens)} token...")
-    live_tokens = []
-    die_count = 0
-    for i, token in enumerate(tokens, 1):
-        ok, name = check_live_token(token)
-        short = f"{token[:8]}...{token[-6:]}"
-        if ok:
-            log_success(f"[LIVE] [{i}/{len(tokens)}] {short} | User: {name}")
-            live_tokens.append(token)
-        else:
-            log_warning(f"[DIE ] [{i}/{len(tokens)}] {short}")
-            save_die_token(token)
-            die_count += 1
-    log_info(f"Ket qua: Live = {len(live_tokens)} | Die = {die_count}")
-    return live_tokens
-
-
-def get_channel_and_server_info(tokens, channel_id):
-    for token in tokens:
-        prof = BrowserProfile()
-        try:
-            session = curl_requests.Session(impersonate=prof.impersonate, verify=False)
-            headers = prof.headers(token)
-            response = session.get(
-                f"{API_BASE}/channels/{channel_id}",
-                headers=headers,
-                timeout=15
-            )
-            if response.status_code == 200:
-                channel_data = response.json()
-                channel_name = channel_data.get("name", "Unknown Channel")
-                guild_id = channel_data.get("guild_id")
-                if not guild_id:
-                    log_warning(f"Khong tim thay guild_id cho channel {channel_id}")
-                    continue
-                guild_response = session.get(
-                    f"{API_BASE}/guilds/{guild_id}",
-                    headers=headers,
-                    timeout=15
-                )
-                if guild_response.status_code == 200:
-                    guild_data = guild_response.json()
-                    server_name = guild_data.get("name", "Unknown Server")
-                    return channel_name, server_name
-                else:
-                    log_warning(f"Loi khi lay thong tin server cho guild_id {guild_id}: {guild_response.status_code}")
-                    continue
-            else:
-                log_warning(f"Loi khi lay thong tin channel {channel_id}: {response.status_code}")
-                continue
-        except Exception as e:
-            log_warning(f"Loi khi lay thong tin channel/server voi token {token[:6]}...{token[-6:]}: {str(e)}")
-            continue
-    return "Unknown Channel", "Unknown Server"
-
-
-def get_user_input():
+def print_boxed_menu():
     clear_screen()
-    log_info("Cau Hinh Spam...")
+    width = shutil.get_terminal_size().columns
+    box_width = min(80, width - 10)
 
-    while True:
-        token_file = log_input("Nhap ten file token (vd: tokens.txt): ").strip()
-        if not token_file:
-            log_warning("Ten file khong duoc de trong!")
-            continue
-        if not os.path.exists(token_file):
-            log_warning(f"File '{token_file}' khong ton tai! Thu lai.")
-            continue
-        break
+    top_border = "╔" + "═" * box_width + "╗"
+    bottom_border = "╚" + "═" * box_width + "╝"
+    empty_line = "║" + " " * box_width + "║"
 
-    log_success(f"Load token tu: {token_file}")
-    tokens = read_tokens(token_file)
-    if not tokens:
-        log_warning("Khong co token hop le trong file!")
-        input("[EXIT] Nhan Enter de thoat...")
-        exit(1)
-    log_success(f"Tong so token: {len(tokens)}")
-    tokens = check_live_all(tokens)
-    if not tokens:
-        log_warning("Tat ca token deu die! Khong con token nao de spam.")
-        input("[EXIT] Nhan Enter de thoat...")
-        exit(1)
-    with open(token_file, "w", encoding="utf-8") as f:
-        f.write("\n".join(tokens))
-    log_success(f"Da cap nhat {len(tokens)} token live vao {token_file}")
+    def print_centered(text, color=Fore.WHITE, style=Style.NORMAL):
+        if len(text) > box_width:
+            text = text[:box_width]
+        padding_left = (box_width - len(text)) // 2
+        padding_right = box_width - len(text) - padding_left
+        line = "║" + " " * padding_left + f"{color}{style}{text}{Style.RESET_ALL}" + " " * padding_right + "║"
+        print(line)
 
-    config = {
-        "discord": {"channel_ids": [], "channel_info": {}},
-        "delay": 1.0,
-        "content_files": []
+    print(Fore.CYAN + top_border + Style.RESET_ALL)
+    print(empty_line)
+    print_centered("🔥🔥🔥 TOOL SPAM DISCORD 🔥🔥🔥", Fore.MAGENTA, Style.BRIGHT)
+    print(empty_line)
+    print_centered("Author: Bui Van Minh ", Fore.YELLOW, Style.BRIGHT)
+    print_centered("Discord đa token X HBST", Fore.YELLOW)
+    print(empty_line)
+    print_centered("LỰA CHỌN CHẾ ĐỘ SPAM", Fore.GREEN, Style.BRIGHT)
+    print_centered("1. Treo Ngôn", Fore.GREEN)
+    print_centered("2. Treo Nhây", Fore.GREEN)
+    print(empty_line)
+    print_centered("Nhập lựa chọn của bạn (1 hoặc 2) và Enter:", Fore.CYAN, Style.BRIGHT)
+    print(empty_line)
+    print(bottom_border)
+    print()
+
+def loading_animation():
+    text_intro = "Đang khởi động tool, vui lòng chờ..."
+    print(Fore.YELLOW + text_intro + Style.RESET_ALL)
+
+    word = "TOOL Bui Van Minh"
+    output = ""
+    for char in word:
+        output += char
+        print(f"\r{Fore.GREEN}{output}{Style.RESET_ALL}", end="", flush=True)
+        time.sleep(0.2) 
+    print()
+    print(Fore.YELLOW + "Khởi động hoàn tất!\n" + Style.RESET_ALL)
+
+def clean_line_for_hash(line):
+    stripped = line.lstrip('#').lstrip()
+    if stripped == "":
+        return ""
+    return "# > " + stripped
+
+async def spam_message(token, channel_id, message, delay, spam_line_by_line=False, mention_ids=None, name_mention=None):
+    headers = {
+        "Authorization": token,
+        "Content-Type": "application/json"
     }
-    token_count = len(tokens)
-    tokens_for_info = tokens
+    url_send = f"https://discord.com/api/v9/channels/{channel_id}/messages"
+    url_typing = f"https://discord.com/api/v9/channels/{channel_id}/typing"
 
-    log_info("Nhap ID Channel (nhap 'done' de dung):")
-    while True:
-        channel_id = log_input("Nhap ID Channel: ").strip()
-        if channel_id.lower() == "done":
-            if not config["discord"]["channel_ids"]:
-                log_warning("Can it nhat 1 Channel!")
-                continue
-            break
-        if channel_id.isdigit():
-            config["discord"]["channel_ids"].append(channel_id)
-            channel_name, server_name = get_channel_and_server_info(tokens_for_info, channel_id)
-            config["discord"]["channel_info"][channel_id] = {"name": channel_name, "server": server_name}
-            log_success(f"Them kenh: {channel_name} | Server: {server_name}")
-        else:
-            log_warning("ID kenh phai la so!")
-
-    suggested_delay = token_count * 0.5
-    log_info(f"Goi y delay: {suggested_delay:.1f} Vua {token_count} token)")
-    default_delay = "1.0"
-    log_info("Cau Hinh Delay:")
-    while True:
-        delay_input = log_input(f"Nhap Delay [Delay Mac Dinh: {default_delay}]: ") or default_delay
-        try:
-            delay = float(delay_input)
-            if delay >= 0:
-                config["delay"] = delay
-                log_success(f"Delay: {delay}s")
-                break
-            log_warning("Delay phai >= 0!")
-        except ValueError:
-            log_warning("Delay phai la so!")
-
-    log_info("Nhap danh sach file noi dung (nhap 'done' de dung):")
-    while True:
-        file_name = log_input("Nhap file noi dung: ").strip()
-        if file_name.lower() == "done":
-            if not config["content_files"]:
-                log_warning("Can it nhat 1 file noi dung!")
-                continue
-            break
-        if os.path.exists(file_name):
-            config["content_files"].append(file_name)
-            log_success(f"Them file: {file_name}")
-        else:
-            log_warning(f"File '{file_name}' khong ton tai!")
-
-    config["tokens"] = tokens
-    return config
-
-
-def treo_datoken_thread(token_idx, all_tokens, channel_id, channel_info, contents, delay, interval):
-    global sent_messages
-    total_tokens = len(all_tokens)
-    content_index = token_idx % len(contents)
-    content = contents[content_index]
-    token = all_tokens[token_idx % total_tokens]
-    channel_name = channel_info.get("name", "Unknown Channel")
-    server_name = channel_info.get("server", "Unknown Server")
-
-    prof = BrowserProfile()
-    session = curl_requests.Session(impersonate=prof.impersonate, verify=False)
-    headers = prof.headers(token)
-
-    time.sleep(token_idx * interval)
+    if spam_line_by_line:
+        raw_lines = message.splitlines()
+        messages = [clean_line_for_hash(line) for line in raw_lines]
+        messages = [line for line in messages if line != ""]
+    else:
+        raw_lines = message.splitlines()
+        cleaned_lines = [clean_line_for_hash(line) for line in raw_lines]
+        messages = ["\n".join(cleaned_lines)]
 
     while True:
-        try:
-            payload = {"content": content}
-            response = session.post(
-                f"{API_BASE}/channels/{channel_id}/messages",
-                headers=headers,
-                json=payload,
-                timeout=15
-            )
-            if response.status_code == 429:
-                try:
-                    wait = float(response.json().get("retry_after", 5))
-                except Exception:
-                    wait = 5
-                time.sleep(wait)
-                continue
-            if 200 <= response.status_code < 300:
-                with lock:
-                    sent_messages += 1
-                    log_message(channel_id, channel_name, server_name, content, token)
-            elif response.status_code in (401, 403):
-                log_warning(f"Token {token[:6]}...{token[-6:]} bi die hoac khong co quyen!")
-                save_die_token(token)
-                return
-            time.sleep(delay)
-        except Exception:
-            time.sleep(5)
+        for msg in messages:
+            if spam_line_by_line:
+                if mention_ids:
+                    tags = " ".join(f"<@{uid}>" for uid in mention_ids)
+                    msg = f"{msg} {tags}"
+                if name_mention:
+                    if "(name)" in msg:
+                        msg = msg.replace("(name)", name_mention)
+                    else:
+                        msg = f"{msg} {name_mention}"
+
+            try:
+                typing_resp = requests.post(url_typing, headers=headers)
+                if typing_resp.status_code == 204:
+                    print(f"{Fore.MAGENTA}[Typing] Đang soạn tin ở kênh {channel_id}...")
+
+                await asyncio.sleep(1.5)
+
+                response = requests.post(url_send, json={"content": msg}, headers=headers)
+                if response.status_code == 200:
+                    print(f"{Fore.CYAN}[SUCCESS] Gửi tin nhắn tới kênh {channel_id}: {msg[:50]}{'...' if len(msg)>50 else ''}")
+                elif response.status_code == 429:
+                    retry_after = response.json().get("retry_after", 1)
+                    print(f"{Fore.RED}[RATE LIMIT] Tạm dừng {retry_after} giây do rate limit.")
+                    await asyncio.sleep(retry_after)
+                else:
+                    print(f"{Fore.RED}[ERROR] Lỗi {response.status_code}: {response.text}")
+            except Exception as e:
+                print(f"{Fore.RED}[EXCEPTION] {str(e)}")
+            await asyncio.sleep(delay)
+
+def input_mode():
+    while True:
+        print_boxed_menu()
+        mode = input().strip()
+        if mode in ["1", "2"]:
+            return mode
+        print(Fore.RED + "Lựa chọn không hợp lệ, vui lòng nhập lại!")
+
+def input_channel_ids():
+    raw = input(f"{Fore.CYAN}Nhập ID kênh (cách nhau dấu phẩy ,):\n").strip()
+    channel_ids = [cid.strip() for cid in raw.split(",") if cid.strip()]
+    if not channel_ids:
+        print(f"{Fore.RED}Bạn chưa nhập ID kênh nào.")
+        return input_channel_ids()
+    return channel_ids
+
+def input_tokens_for_channel(channel_id):
+    while True:
+        token_file = input(f"{Fore.CYAN}Nhập tên file chứa token cho kênh {channel_id}: ").strip()
+        if not os.path.exists(token_file):
+            print(f"{Fore.RED}File {token_file} không tồn tại. Nhập lại!")
             continue
+        # FIX BOM
+        with open(token_file, 'r', encoding='utf-8-sig') as f:
+            tokens = [line.strip() for line in f if line.strip()]
+        if not tokens:
+            print(f"{Fore.RED}File {token_file} không chứa token nào. Nhập lại!")
+            continue
+        return tokens
 
-
-def main():
-    global start_time
-    config = get_user_input()
-    tokens = config["tokens"]
-    contents = [open(f, "r", encoding="utf-8").read().strip() for f in config["content_files"] if os.path.exists(f)]
-    if not contents:
-        log_warning("Khong co file noi dung hop le!")
-        input("[EXIT] Nhan Enter de thoat...")
-        return
-    total_tokens = len(tokens)
-    delay = config["delay"]
-    interval = delay / total_tokens if total_tokens > 1 else delay
-    threads = []
-    total_threads = 0
-    clear_screen()
-    start_time = time.time()
-    for channel_id in config["discord"]["channel_ids"]:
-        channel_info = config["discord"]["channel_info"].get(channel_id, {"name": "Unknown Channel", "server": "Unknown Server"})
-        for i in range(len(tokens)):
-            thread = threading.Thread(
-                target=treo_datoken_thread,
-                args=(i, tokens, channel_id, channel_info, contents, delay, interval),
-                daemon=True
-            )
-            threads.append(thread)
-            thread.start()
-            total_threads += 1
-    log_success(f"Dang Khoi Dong {total_threads} Luong...")
+def choose_message_file():
+    txt_files = [f for f in os.listdir() if f.endswith('.txt')]
+    if not txt_files:
+        print(f"{Fore.RED}Không tìm thấy file .txt nào trong thư mục.")
+        return choose_message_file()
+    print(f"{Fore.YELLOW}Các file .txt có sẵn:")
+    for idx, fname in enumerate(txt_files):
+        print(f"{Fore.CYAN}{idx+1}. {fname}")
     while True:
-        time.sleep(60)
+        try:
+            idx = int(input(f"{Fore.CYAN}Chọn file chứa tin nhắn (nhập số thứ tự): ")) - 1
+            if 0 <= idx < len(txt_files):
+                return txt_files[idx]
+            else:
+                print(f"{Fore.RED}Chọn file không hợp lệ. Nhập lại!")
+        except ValueError:
+            print(f"{Fore.RED}Vui lòng nhập số.")
 
+def input_delay(token_idx, channel_id):
+    while True:
+        val = input(f"{Fore.YELLOW}Nhập delay cho token thứ {token_idx+1} (kênh {channel_id}): ").strip()
+        try:
+            delay = float(val)
+            if delay < 0:
+                print(f"{Fore.RED}Delay phải là số không âm. Nhập lại!")
+                continue
+            return delay
+        except ValueError:
+            print(f"{Fore.RED}Delay phải là số. Nhập lại!")
+
+def input_mention_ids():
+    print("Nhập từng user ID Discord để tag, Enter bỏ qua để kết thúc:")
+    mention_ids = []
+    while True:
+        uid = input("User ID: ").strip()
+        if uid == "":
+            break
+        mention_ids.append(uid)
+    return mention_ids
+
+def input_name_mention():
+    choose_name = input("Bạn có muốn réo tên (thêm tên text vào nội dung) không? (y/n): ").strip().lower()
+    if choose_name == 'y':
+        names = input("Nhập tên cách nhau bởi dấu phẩy (ví dụ: Thành,Dương,Ken): ").strip()
+        return ", ".join([n.strip() for n in names.split(",") if n.strip()])
+    return None
+
+def print_large_text_and_ryder():
+    print_large_text()
+    print_ryder()
+
+async def main():
+    print_large_text_and_ryder()
+    print_sd()
+    input(f"{Fore.CYAN}Nhấn Enter để tiếp tục vào menu...")
+    loading_animation()
+
+    mode = input_mode()
+    spam_line_by_line = (mode == "2")
+
+    mention_ids = []
+    name_mention = None
+
+    if spam_line_by_line:
+        mention_ids = input_mention_ids()
+        name_mention = input_name_mention()
+
+    channel_ids = input_channel_ids()
+
+    tokens_map = {}
+    for ch_id in channel_ids:
+        tokens_map[ch_id] = input_tokens_for_channel(ch_id)
+
+    message_file = choose_message_file()
+    with open(message_file, 'r', encoding='utf-8-sig') as f:  # FIX BOM
+        message_content = f.read()
+
+    tasks = []
+    for ch_id, tokens in tokens_map.items():
+        for idx, token in enumerate(tokens):
+            delay = input_delay(idx, ch_id)
+            tasks.append(spam_message(token, ch_id, message_content, delay, spam_line_by_line, mention_ids, name_mention))
+
+    print(f"\n{Fore.MAGENTA}Tool thuộc quyền sở hữu của: Thành Nguyễn Đình Dương X Hbst\n")
+    await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
